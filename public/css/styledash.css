@@ -1,0 +1,15 @@
+body {
+
+  background-color: bisque;
+}
+
+.centered-rectangle {
+  width: 1500px;
+  height: 850px;
+  background-color: #FFFFFF; /* You can set the background color you want */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+

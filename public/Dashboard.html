@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Ace Editor Example</title>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/theme-monokai.min.css">
+</head>
+<body>
+   <div class="centered-rectangle">
+       <div id="editor" style="height: 400px;"></div>
+       <button id="runButton">Run</button>
+       <div id="output" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll;"></div>
+   </div>
+
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
+   
+   <script>
+       var editor = ace.edit("editor");
+       editor.setTheme("ace/theme/twilight");
+       editor.session.setMode("ace/mode/javascript");
+
+       // Increase text size
+       editor.setFontSize("16px");
+
+       // Enable autocompletion
+       editor.setOptions({
+           enableBasicAutocompletion: true,
+           enableSnippets: true,
+           enableLiveAutocompletion: true,
+       });
+
+       // Create a reference to the output div
+       var outputDiv = document.getElementById("output");
+
+       // Create a reference to the Run button
+       var runButton = document.getElementById("runButton");
+
+       // Event handler for the Run button
+       runButton.addEventListener("click", function() {
+           // Clear the output div
+           outputDiv.innerHTML = "";
+
+           try {
+               // Capture the code from the editor
+               var code = editor.getValue();
+
+               // Compile and execute the code
+               var compiledCode = new Function(code);
+               var result = compiledCode();
+
+               // Display the result in the output div
+               if (result !== undefined) {
+               }
+           } catch (error) {
+               // Display any errors in the output div
+               outputDiv.innerHTML = "Error: " + error;
+           }
+       });
+
+       editor.session.setOption("useWorker", true);
+       editor.session.setOption("useSoftTabs", true);
+       editor.session.setOption("tabSize", 2);
+   </script>
+</body>
+</html>
