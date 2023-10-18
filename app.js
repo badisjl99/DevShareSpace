@@ -1,11 +1,16 @@
+
 const express = require('express');
 const session = require('express-session'); // Add express-session
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
+const socketIO = require('socket.io');
 
 const app = express();
 const port = 3000;
+const connectedUsers = new Set();
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -29,20 +34,22 @@ app.get('/', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-    // Registration logic here
-    // After successful registration, create a session for the user
-    req.session.user = { /* store user data here */ };
-    res.redirect('/');
-});
+    const { name, lastname, email, password } = req.body;
 
+    // Save the user data to your database
+    db.run('INSERT INTO users (name, lastname, email, password) VALUES (?, ?, ?, ?)', [name, lastname, email, password], function (err) {
+        if (err) {
+            return console.log(err.message);
+        }
+        console.log(`A row has been inserted with rowid ${this.lastID}`);
+    });
+
+    // Redirect the user to the dashboard or another appropriate page after successful registration
+    res.redirect('/dashboard');
+});
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
-    // Authenticate user against the database
-    // If credentials are valid, create a session
-    // Otherwise, handle authentication failure
-
-    // Example code to check user credentials
     db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password], (err, row) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -67,11 +74,41 @@ function isAuthenticated(req, res, next) {
     }
 }
 
-// Dashboard route protected by authentication middleware
 app.get('/dashboard', isAuthenticated, (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+    const { user } = req.session;
+    const currentUserScript = `<script>document.getElementById('currentUser').innerText = "${user.name} ${user.lastname}";</script>`;
+    const dashboardFilePath = path.join(__dirname, 'public', 'dashboard.html');
+
+    // Read the content of the dashboard.html file
+    fs.readFile(dashboardFilePath, 'utf8', (err, data) => {
+        if (err) {
+            return res.status(500).send('Error reading dashboard.html');
+        }
+
+        // Inject the JavaScript into the HTML
+        const modifiedDashboard = data.replace('</body>', currentUserScript + '</body>');
+        res.send(modifiedDashboard);
+    });
 });
 
-app.listen(port, () => {
+const server = http.createServer(app);
+const io = socketIO(server);
+io.on('connection', (socket) => {
+    connectedUsers.add(socket.id);
+    io.emit('userCount', connectedUsers.size);
+
+    socket.on('disconnect', () => {
+        connectedUsers.delete(socket.id);
+        io.emit('userCount', connectedUsers.size);
+    });
+
+    socket.on('codeChange', (newCode) => {
+        // Emit the code change to all connected users except the one who initiated the change
+        socket.broadcast.emit('codeChange', newCode);
+    });
+});
+
+
+server.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });

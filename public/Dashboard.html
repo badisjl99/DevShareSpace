@@ -1,67 +1,132 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
-   <meta charset="UTF-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-   <title>Ace Editor Example</title>
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/theme-monokai.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ace Editor Example</title>
+    <style>
+        body {
+            background-color: #ffffff;
+        }
+        .centered-rectangle {
+            text-align: center;
+            margin-top: 2.5%;
+        }
+        #runButton {
+            background-color: rgb(43, 56, 174);
+            width: 100px;
+            height: 30px;
+            float: right;
+            color: aliceblue;
+            font-size: 15px;
+        }
+        #redRectangle {
+            width: 100vw;
+            height: 45px;
+            background-color: rgb(193, 204, 219);
+            position: fixed;
+            top: 0;
+        }
+        #userBox {
+            width: 550px;
+            height: 25px;
+            background-color: rgb(237, 237, 237);
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            color: rgb(97, 71, 189);
+            text-align: center;
+            line-height: 25px;
+            font-size: 14px;
+        }
+        #userList {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            color: rgb(97, 71, 189);
+            font-size: 14px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
-   <div class="centered-rectangle">
-       <div id="editor" style="height: 400px;"></div>
-       <button id="runButton">Run</button>
-       <div id="output" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll;"></div>
-   </div>
+    <div id="redRectangle">
+        <div id="userBox">Current User: <span id="currentUser">John Doe</span>, Total Users: <span id="connectedUserCount">0</span></div>
 
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
-   
-   <script>
-       var editor = ace.edit("editor");
-       editor.setTheme("ace/theme/twilight");
-       editor.session.setMode("ace/mode/javascript");
 
-       // Increase text size
-       editor.setFontSize("16px");
+    </div>
+    
+    <div class="centered-rectangle">
+        <div id="editor" style="height: 650px; font-size: 18px;"></div>
+        <button id="runButton">Run</button>
+    </div>
+    <footer>
+        <div id="output" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; background-color: rgb(166, 159, 207);"></div>
+    </footer>
+    <script>
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/twilight");
+        editor.session.setMode("ace/mode/javascript");
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: true
+        });
+        editor.setFontSize("18px");
+        const socket = io();
+    
+     
+        var runButton = document.getElementById("runButton");
+        var outputDiv = document.getElementById("output");
+        runButton.addEventListener("click", function () {
+            var code = editor.getValue();
+    
+            try {
+                var code = editor.getValue();
+                var outputBuffer = [];
+                
+                // Redirect console.log to capture output
+                var originalConsoleLog = console.log;
+                console.log = function() {
+                    outputBuffer.push(Array.from(arguments).join(" "));
+                };
+    
+                eval(code);
+    
+                // Restore the original console.log
+                console.log = originalConsoleLog;
+    
+                outputDiv.innerText = "Code Ran Successfully:\n\n" + outputBuffer.join("\n");
+            } catch (error) {
+                outputDiv.innerText = "Error: " + error;
+            }
+        });
 
-       // Enable autocompletion
-       editor.setOptions({
-           enableBasicAutocompletion: true,
-           enableSnippets: true,
-           enableLiveAutocompletion: true,
-       });
+        const connectedUserCount = document.getElementById('connectedUserCount');
+    socket.on('userCount', (count) => {
+        connectedUserCount.innerText = count;
+    });
+    var typingTimer;
+    var doneTypingInterval = 1000; // Adjust the interval as needed
 
-       // Create a reference to the output div
-       var outputDiv = document.getElementById("output");
+    editor.getSession().on('change', function (e) {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(function () {
+            var code = editor.getValue();
+            socket.emit('codeChange', code);
+        }, doneTypingInterval);
+    });
 
-       // Create a reference to the Run button
-       var runButton = document.getElementById("runButton");
+    socket.on('codeChange', function (newCode) {
+        if (newCode !== editor.getValue()) {
+            var currentPosition = editor.session.selection.toJSON();
+            editor.setValue(newCode);
+            editor.session.selection.fromJSON(currentPosition);
+        }
+    });
+    
 
-       // Event handler for the Run button
-       runButton.addEventListener("click", function() {
-           // Clear the output div
-           outputDiv.innerHTML = "";
-
-           try {
-               // Capture the code from the editor
-               var code = editor.getValue();
-
-               // Compile and execute the code
-               var compiledCode = new Function(code);
-               var result = compiledCode();
-
-               // Display the result in the output div
-               if (result !== undefined) {
-               }
-           } catch (error) {
-               // Display any errors in the output div
-               outputDiv.innerHTML = "Error: " + error;
-           }
-       });
-
-       editor.session.setOption("useWorker", true);
-       editor.session.setOption("useSoftTabs", true);
-       editor.session.setOption("tabSize", 2);
-   </script>
+    </script>
+    
 </body>
 </html>
