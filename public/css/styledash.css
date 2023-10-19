@@ -1,15 +1,64 @@
 body {
-
-  background-color: bisque;
+  background-color: #ffffff;
 }
-
-.centered-rectangle {
-  width: 1500px;
-  height: 850px;
-  background-color: #FFFFFF; /* You can set the background color you want */
+.dash-container {
+  padding: 10px;
+  background-color: #23292b ;
+  width: 1550px;
+  height: 70%;
   position: absolute;
-  top: 50%;
-  left: 50%;
+  left: 43%;
+  top: 42%;
   transform: translate(-50%, -50%);
 }
 
+#runButton {
+background-color: rgb(16, 17, 24);
+width: 100px;
+height: 30px;
+float: right;
+color: aliceblue;
+font-size: 15px;
+border: 2px solid blue;
+border-radius: 5px;
+}
+
+#runButton:hover {
+background-color: #4656b9;
+}
+
+#typingStatus{
+position: absolute;
+left: 42%;
+font-size: 20px;
+font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+color: #2a3ebe;
+
+}
+
+.lobby-container {
+  text-align: center;
+  background-color: #f3e6db;
+  width: 256px;
+  height: 65%;
+  position: absolute;
+  left: 92%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  border: 2px solid black;
+}
+
+
+.output-container{
+  padding: 10px;
+  background-color: #303233;
+  width: 1550px;
+  height: 18%;
+  position: absolute;
+  left: 43%;
+  top: 89%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: larger;
+  overflow-x: auto; /* Add horizontal scrollbar */
+}

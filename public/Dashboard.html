@@ -1,132 +1,120 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ace Editor Example</title>
-    <style>
-        body {
-            background-color: #ffffff;
-        }
-        .centered-rectangle {
-            text-align: center;
-            margin-top: 2.5%;
-        }
-        #runButton {
-            background-color: rgb(43, 56, 174);
-            width: 100px;
-            height: 30px;
-            float: right;
-            color: aliceblue;
-            font-size: 15px;
-        }
-        #redRectangle {
-            width: 100vw;
-            height: 45px;
-            background-color: rgb(193, 204, 219);
-            position: fixed;
-            top: 0;
-        }
-        #userBox {
-            width: 550px;
-            height: 25px;
-            background-color: rgb(237, 237, 237);
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            color: rgb(97, 71, 189);
-            text-align: center;
-            line-height: 25px;
-            font-size: 14px;
-        }
-        #userList {
-            position: fixed;
-            top: 50px;
-            right: 10px;
-            color: rgb(97, 71, 189);
-            font-size: 14px;
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" type="text/javascript" charset="utf-8"></script>
+    <title>Online JS Editor</title>
+    <link rel="stylesheet" href="css/styledash.css">
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js" type="text/javascript" charset="utf-8"></script>
 </head>
 <body>
-    <div id="redRectangle">
-        <div id="userBox">Current User: <span id="currentUser">John Doe</span>, Total Users: <span id="connectedUserCount">0</span></div>
-
-
-    </div>
+    <p id="typingStatus"></p>
+    <div class="dash-container">
     
-    <div class="centered-rectangle">
         <div id="editor" style="height: 650px; font-size: 18px;"></div>
-        <button id="runButton">Run</button>
+       
     </div>
-    <footer>
-        <div id="output" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll; background-color: rgb(166, 159, 207);"></div>
-    </footer>
+    <div class="output-container">
+        <button id="runButton">Run</button>
+        <div id="output"></div>
+    </div>
+    <div class="lobby-container">
+        <span id="connectedUserCount">0</span> users are connected.
+        <br>
+        <ul id="connectedUsersList"></ul>
+    </div>
+   
+    <footer></footer>
+
     <script>
         var editor = ace.edit("editor");
-        editor.setTheme("ace/theme/twilight");
-        editor.session.setMode("ace/mode/javascript");
         editor.setOptions({
             enableBasicAutocompletion: true,
             enableSnippets: true,
             enableLiveAutocompletion: true
         });
+
+        editor.setTheme("ace/theme/gruvbox");
+        editor.session.setMode("ace/mode/javascript");
         editor.setFontSize("18px");
         const socket = io();
-    
-     
+
         var runButton = document.getElementById("runButton");
         var outputDiv = document.getElementById("output");
+        var typingTimer;
+        var doneTypingInterval = 1000;
+        var typing = false;
+
         runButton.addEventListener("click", function () {
             var code = editor.getValue();
-    
+
             try {
-                var code = editor.getValue();
                 var outputBuffer = [];
-                
-                // Redirect console.log to capture output
+
                 var originalConsoleLog = console.log;
                 console.log = function() {
                     outputBuffer.push(Array.from(arguments).join(" "));
                 };
-    
+
                 eval(code);
-    
-                // Restore the original console.log
+
                 console.log = originalConsoleLog;
-    
-                outputDiv.innerText = "Code Ran Successfully:\n\n" + outputBuffer.join("\n");
+
+                outputDiv.innerText = "Code Ran Successfully:\n---------------------------------------------------------------\n" + outputBuffer.join("\n");
             } catch (error) {
                 outputDiv.innerText = "Error: " + error;
             }
         });
 
         const connectedUserCount = document.getElementById('connectedUserCount');
-    socket.on('userCount', (count) => {
-        connectedUserCount.innerText = count;
-    });
-    var typingTimer;
-    var doneTypingInterval = 1000; // Adjust the interval as needed
+        const connectedUsersList = document.getElementById('connectedUsersList');
+        const typingStatus = document.getElementById('typingStatus');
 
-    editor.getSession().on('change', function (e) {
-        clearTimeout(typingTimer);
-        typingTimer = setTimeout(function () {
-            var code = editor.getValue();
-            socket.emit('codeChange', code);
-        }, doneTypingInterval);
-    });
+        socket.on('userCount', (count) => {
+            connectedUserCount.innerText = count;
+        });
 
-    socket.on('codeChange', function (newCode) {
-        if (newCode !== editor.getValue()) {
-            var currentPosition = editor.session.selection.toJSON();
-            editor.setValue(newCode);
-            editor.session.selection.fromJSON(currentPosition);
+        socket.on('updateUserList', (users) => {
+            connectedUsersList.innerHTML = '';
+            users.forEach(user => {
+                const li = document.createElement('li');
+                li.textContent = user;
+                connectedUsersList.appendChild(li);
+            });
+        });
+
+        editor.getSession().on('change', function (e) {
+            if (!typing) {
+                typing = true;
+                socket.emit('typing');
+            }
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(finishedTyping, doneTypingInterval);
+        });
+
+        function finishedTyping() {
+            if (typing) {
+                typing = false;
+                socket.emit('finishedTyping');
+            }
         }
-    });
-    
 
+        socket.on('typing', function (user) {
+            typingStatus.innerText = user + ' is typing...';
+        });
+
+        socket.on('finishedTyping', function () {
+            typingStatus.innerText = '';
+        });
+
+        socket.on('codeChange', function (newCode) {
+            if (newCode !== editor.getValue()) {
+                var currentPosition = editor.session.selection.toJSON();
+                editor.setValue(newCode);
+                editor.session.selection.fromJSON(currentPosition);
+            }
+        });
     </script>
-    
 </body>
 </html>
